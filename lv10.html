@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bomb Survival - FINAL LEVEL 10</title>
+    <style>
+        :root {
+            --p1-color: #3333ff; --p2-color: #ff3333; --accent-yellow: #ffff00;
+        }
+
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000; font-family: 'Arial Black', Gadget, sans-serif; }
+        
+        /* Hiệu ứng Glitch cho nền */
+        .game-viewport { 
+            position: relative; width: 100vw; height: 56.25vw; max-height: 100vh; max-width: 177.78vh; 
+            margin: auto; top: 50%; transform: translateY(-50%); 
+            background: #000; overflow: hidden; border: 4px solid #fff;
+            animation: borderGlitch 0.2s infinite;
+        }
+
+        @keyframes borderGlitch {
+            0% { border-color: #f0f; } 50% { border-color: #0ff; } 100% { border-color: #f00; }
+        }
+
+        #bg-video { position: absolute; width: 100%; height: 100%; object-fit: cover; z-index: 1; opacity: 0.5; }
+        .ui-layer { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+
+        /* --- PLAYERS & BOMB (Khung chuẩn) --- */
+        .player-container { position: absolute; bottom: 8%; display: flex; flex-direction: column; align-items: center; z-index: 5; transition: all 0.5s; }
+        .p1-side { left: 3%; } .p2-side { right: 3%; }
+        .bomb-wrapper { position: relative; width: 280px; height: 280px; }
+        .bomb-img { width: 100%; animation: heartBeat 0.5s infinite; }
+        @keyframes heartBeat { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+        .explosion-vid { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 600px; display: none; mix-blend-mode: screen; z-index: 20; }
+        .character-img { width: 230px; margin-top: -80px; }
+        .player-name { padding: 10px 30px; font-size: 24px; font-weight: bold; color: white; margin-bottom: 15px; border: 3px solid transparent; pointer-events: auto; }
+        .p1-label { background: var(--p1-color); } .p2-label { background: var(--p2-color); }
+        .is-active { animation: activeBlink 0.4s infinite; border-color: #fff; box-shadow: 0 0 30px #fff; }
+        @keyframes activeBlink { 50% { opacity: 0.3; } }
+
+        .center-ui { display: flex; flex-direction: column; align-items: center; margin-top: 10px; pointer-events: auto; }
+        .level-text { font-size: 80px; color: #fff; margin: 0; text-shadow: 4px 4px #ff00ff, -4px -4px #00ffff; }
+        .timer-box { width: 500px; height: 35px; background: #000; border: 3px solid #fff; margin: 10px 0; overflow: hidden; }
+        #timer-fill { width: 100%; height: 100%; background: #fff; }
+
+        .grid-layout { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; transition: all 0.3s; }
+
+        /* --- PHONG CÁCH MORPHING --- */
+        .grid-btn { 
+            position: relative; width: 90px; height: 90px; background: #222; color: #fff; font-size: 30px; font-weight: bold;
+            border: 2px solid #fff; cursor: pointer; display: flex; justify-content: center; align-items: center;
+        }
+
+        /* Circle Mode */
+        .mode-circle { border-radius: 50%; animation: heartBeat 1s infinite; border-color: #f0f; }
+        /* Hex Mode */
+        .mode-hex { clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); background: #001a1a; border-color: #0ff; }
+        /* Ghost Mode */
+        .mode-ghost span { opacity: 0; transition: opacity 0.5s; }
+
+        .grid-btn.used::after { content: "X"; position: absolute; color: red; font-size: 60px; z-index: 10; clip-path: none !important; }
+
+        .overlay { position: absolute; inset: 0; z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.95); color: white; text-align: center; }
+        .btn-action { padding: 25px 60px; font-size: 30px; background: #fff; color: #000; border: none; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="game-viewport">
+        <video id="bg-video" loop muted><source src="nendong.mp4" type="video/mp4"></video>
+        
+        <div id="start-screen" class="overlay">
+            <h1 style="font-size: 60px; color: #ff00ff;">THE FINAL BOSS</h1>
+            <button id="btn-ready" class="btn-action">KÍCH HOẠT TRẬN CHIẾN CUỐI</button>
+        </div>
+
+        <div id="win-screen" class="overlay" style="display: none;">
+            <h1 style="font-size: 80px; color: gold;">HUYỀN THOẠI PHÁ BOM</h1>
+            <p style="font-size: 30px;">BẠN ĐÃ CHINH PHỤC TẤT CẢ THỬ THÁCH!</p>
+            <button onclick="location.reload()" class="btn-action">CHƠI LẠI TỪ ĐẦU</button>
+        </div>
+
+        <div class="ui-layer">
+            <div class="center-ui">
+                <h1 class="level-text">FINAL: 10</h1>
+                <div class="timer-box"><div id="timer-fill"></div></div>
+                <div class="grid-layout" id="number-grid"></div>
+            </div>
+        </div>
+
+        <div class="player-container p1-side" id="p1-unit">
+            <div class="player-name p1-label" id="name-1">LEGEND 01</div>
+            <div class="bomb-wrapper"><img src="bom1.png" class="bomb-img" id="bomb-p1"><video class="explosion-vid" id="vid-no-1" muted><source src="no.mp4" type="video/mp4"></video></div>
+            <img src="nguoi1.png" class="character-img">
+        </div>
+        <div class="player-container p2-side" id="p2-unit">
+            <div class="player-name p2-label" id="name-2">LEGEND 02</div>
+            <div class="bomb-wrapper"><img src="bom2.png" class="bomb-img" id="bomb-p2"><video class="explosion-vid" id="vid-no-2" muted><source src="no.mp4" type="video/mp4"></video></div>
+            <img src="nguoi2.png" class="character-img">
+        </div>
+    </div>
+
+    <audio id="audio-bg" loop><source src="nhac-nen.mp3" type="audio/mpeg"></audio>
+    <audio id="audio-bomb"><source src="bomb.mp3" type="audio/mpeg"></audio>
+    <audio id="audio-correct"><source src="dung.mp3" type="audio/mpeg"></audio>
+
+<script>
+const GameEngine = (() => {
+    const DEATH_VAL = Math.floor(Math.random() * 9) + 1; 
+    const MAX_TIME = 150; 
+    let state = { currentPlayer: 1, timeLeft: MAX_TIME, isActive: false, timer: null };
+    
+    const dom = {
+        timerFill: document.getElementById('timer-fill'), 
+        grid: document.getElementById('number-grid'),
+        labels: [null, document.getElementById('name-1'), document.getElementById('name-2')],
+        units: [null, document.getElementById('p1-unit'), document.getElementById('p2-unit')],
+        bombImgs: [null, document.getElementById('bomb-p1'), document.getElementById('bomb-p2')],
+        expVids: [null, document.getElementById('vid-no-1'), document.getElementById('vid-no-2')],
+        sfx: { bg: document.getElementById('audio-bg'), bomb: document.getElementById('audio-bomb'), correct: document.getElementById('audio-correct') }
+    };
+
+    const shuffleGrid = () => {
+        const btns = Array.from(dom.grid.children);
+        for (let i = btns.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            dom.grid.appendChild(btns[j]);
+        }
+    };
+
+    const morphStyle = () => {
+        const btns = document.querySelectorAll('.grid-btn');
+        const modes = ['mode-normal', 'mode-circle', 'mode-hex', 'mode-ghost'];
+        const currentMode = modes[Math.floor(Math.random() * modes.length)];
+        
+        btns.forEach(btn => {
+            btn.className = 'grid-btn ' + currentMode;
+        });
+    };
+
+    const initGrid = () => {
+        for (let i = 1; i <= 9; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'grid-btn';
+            btn.innerHTML = `<span>${i.toString().padStart(2, '0')}</span>`;
+            btn.onclick = () => handleChoice(i, btn);
+            dom.grid.appendChild(btn);
+        }
+    };
+
+    const startTurn = () => {
+        if (!state.isActive) return;
+        
+        morphStyle(); // Đổi phong cách mỗi lượt
+        shuffleGrid(); // Đảo vị trí mỗi lượt
+        
+        dom.labels[1].classList.toggle('is-active', state.currentPlayer === 1);
+        dom.labels[2].classList.toggle('is-active', state.currentPlayer === 2);
+        state.timeLeft = MAX_TIME;
+        clearInterval(state.timer);
+        
+        state.timer = setInterval(() => {
+            state.timeLeft--;
+            dom.timerFill.style.width = (state.timeLeft / MAX_TIME * 100) + '%';
+            if (state.timeLeft <= 0) triggerExplosion();
+        }, 100);
+    };
+
+    const handleChoice = (val, btn) => {
+        if (!state.isActive || btn.classList.contains('used')) return;
+        
+        btn.classList.add('used');
+        if (val === DEATH_VAL) {
+            triggerExplosion();
+        } else {
+            dom.sfx.correct.currentTime = 0; dom.sfx.correct.play();
+            state.currentPlayer = state.currentPlayer === 1 ? 2 : 1;
+            startTurn();
+        }
+    };
+
+    const triggerExplosion = () => {
+        state.isActive = false; clearInterval(state.timer);
+        dom.sfx.bg.pause(); dom.sfx.bomb.play();
+        const p = state.currentPlayer;
+        dom.bombImgs[p].style.visibility = 'hidden';
+        dom.expVids[p].style.display = 'block'; dom.expVids[p].play();
+        setTimeout(() => { dom.units[p].style.transform = `translateY(-600px) rotate(${p === 1 ? -90 : 90}deg)`; dom.units[p].style.opacity = '0'; }, 200);
+        setTimeout(() => {
+            const winner = p === 1 ? "LEGEND 02" : "LEGEND 01";
+            document.getElementById('winner-name').innerText = winner + " WIN";
+            document.getElementById('win-screen').style.display = 'flex';
+        }, 2500);
+    };
+
+    return {
+        boot: () => {
+            initGrid();
+            document.getElementById('btn-ready').onclick = () => {
+                document.getElementById('start-screen').style.display = 'none';
+                document.getElementById('bg-video').play();
+                dom.sfx.bg.volume = 0.3; dom.sfx.bg.play();
+                state.isActive = true; startTurn();
+            };
+        }
+    };
+})();
+window.onload = GameEngine.boot;
+</script>
+</body>
+</html>
